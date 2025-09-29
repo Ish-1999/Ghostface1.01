@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Ghostface — Slide to Unlock</title>
+<meta name="theme-color" content="#000000">
+<style>
+  :root{
+    --green:#2bd46b;
+    --red:#ff3b30;
+    --bg-url: url('https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRrInxNPhP2lfdYIRLErZu45wP-gijlSThKjray_u6Xje_NkXgw2v5W_2_C&s=10');
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;background:#000}
+  body{font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial; color:#fff; overflow:hidden}
+
+  /* ===== iPhone 4 style lock screen ===== */
+  .lock{position:fixed; inset:0; display:grid; grid-template-rows:1fr auto; background:#000; z-index:10}
+  .lock .bg{position:absolute; inset:0; background: linear-gradient(0deg, rgba(0,0,0,.35), rgba(0,0,0,.55)), var(--bg-url) center/cover no-repeat; filter:grayscale(.06) contrast(1.06) brightness(.9);}
+  .statusbar{position:relative; z-index:2; display:flex; justify-content:space-between; padding:10px 14px; font-size:12px; opacity:.85}
+  .center{position:relative; z-index:2; display:grid; place-items:center}
+  .clock{text-align:center; margin-top:-6vh}
+  .time{font-size:72px; font-weight:300; letter-spacing:.02em}
+  .date{font-size:20px; opacity:.9; margin-top:6px}
+  .slidebar-wrap{position:relative; z-index:2; padding:14px; padding-bottom:22px;}
+  .slidebar{position:relative; height:64px; border-radius:12px; overflow:hidden; background: rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.12);
+             box-shadow: inset 0 2px 8px rgba(0,0,0,.5);}
+  .slide-text{position:absolute; inset:0; display:grid; place-items:center; font-size:20px; letter-spacing:.04em; color:rgba(255,255,255,.75);
+               -webkit-mask-image: linear-gradient( -30deg, transparent 20%, white 50%, transparent 80% );
+               mask-image: linear-gradient( -30deg, transparent 20%, white 50%, transparent 80% );
+               animation: shimmer 2.5s linear infinite; pointer-events:none;}
+  @keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
+  .thumb{position:absolute; left:6px; top:6px; width:52px; height:52px; border-radius:10px; background:linear-gradient(180deg,#fefefe,#cfcfcf);
+          color:#111; display:grid; place-items:center; font-weight:800; box-shadow:0 8px 24px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.6);
+          user-select:none; touch-action:none; cursor:grab; transform: translateX(0);}
+  .thumb:active{cursor:grabbing}
+  .arrow{width:0;height:0;border-top:10px solid transparent;border-bottom:10px solid transparent;border-left:14px solid #111;margin-left:2px}
+
+  /* ===== Incoming Call screen ===== */
+  .screen{position:fixed; inset:0; display:none; place-items:center; background:#000; z-index:20}
+  .screen.show{display:grid}
+  .bg-call{position:absolute; inset:0; background: linear-gradient(0deg, rgba(0,0,0,.55), rgba(0,0,0,.55)), var(--bg-url) center/cover no-repeat; filter:saturate(1.08) contrast(1.05);}
+  .ui{position:relative; z-index:2; width:min(520px,94vw); padding:24px; display:flex; flex-direction:column; gap:28px; align-items:center; text-align:center}
+  .small{font-size:14px; opacity:.9; letter-spacing:.18em; text-transform:uppercase}
+  .title{font-size:40px; font-weight:900; letter-spacing:.1em; text-transform:uppercase; text-shadow:0 0 18px rgba(255,255,255,.15)}
+  .controls{display:flex; gap:36px; align-items:center; justify-content:center; margin-top:8px}
+  .ctrl{display:flex; flex-direction:column; align-items:center; gap:8px}
+  .btn{width:88px; height:88px; border-radius:999px; border:none; display:grid; place-items:center; cursor:pointer;
+        box-shadow: 0 10px 40px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.08); transition: transform .06s ease}
+  .btn:active{transform:scale(.96)}
+  .decline{background: radial-gradient(circle at 30% 30%, #ff9ea0, var(--red));}
+  .answer{background: radial-gradient(circle at 30% 30%, #9bffd2, var(--green));}
+  .label{font-size:12px; opacity:.9; letter-spacing:.18em; text-transform:uppercase}
+  @keyframes shake{0%{transform:translateX(0)}25%{transform:translateX(-6px)}50%{transform:translateX(6px)}75%{transform:translateX(-5px)}100%{transform:translateX(0)}}
+  .shake{animation: shake .28s ease}
+  .icon{width:38px; height:38px}
+  .hint{font-size:12px; opacity:.7; margin-top:-12px}
+
+  /* Player */
+  .player{position:fixed; inset:0; background:#000; display:none; z-index:9999}
+  .player.show{display:block}
+  video{position:absolute; inset:0; width:100%; height:100%; object-fit:cover; background:#000}
+</style>
+</head>
+<body>
+
+<!-- ===== LOCK SCREEN ===== -->
+<section id="lock" class="lock">
+  <div class="bg" aria-hidden="true"></div>
+  <div class="statusbar">
+    <div>No SIM</div>
+    <div>⚪︎ 57%</div>
+  </div>
+  <div class="center">
+    <div class="clock">
+      <div id="time" class="time">7:36</div>
+      <div id="date" class="date">Friday, July 26</div>
+    </div>
+  </div>
+  <div class="slidebar-wrap">
+    <div class="slidebar" id="slider">
+      <div class="slide-text">slide to unlock</div>
+      <div class="thumb" id="thumb" aria-label="Deslizar para desbloquear"><div class="arrow"></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== INCOMING CALL ===== -->
+<section id="incoming" class="screen" aria-label="Llamada entrante">
+  <div class="bg-call" aria-hidden="true"></div>
+  <div class="ui">
+    <div class="small" id="status">INCOMING CALL</div>
+    <div class="title">Ghostface</div>
+    <div class="controls">
+      <div class="ctrl">
+        <button id="decline" class="btn decline" aria-label="Colgar">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path fill="white" d="M6 14a1 1 0 0 1 1.2-.98c.9.18 1.86.28 2.8.28h4c.94 0 1.9-.1 2.8-.28A1 1 0 0 1 18 14v3a1 1 0 0 1-1.14.99c-3.9-.47-7.82-.47-11.72 0A1 1 0 0 1 4 17v-3a1 1 0 0 1 1.2-.98z"/></svg>
+        </button>
+        <div class="label">Colgar</div>
+      </div>
+      <div class="ctrl">
+        <button id="answer" class="btn answer" aria-label="Contestar">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" style="transform:rotate(180deg)"><path fill="white" d="M6 14a1 1 0 0 1 1.2-.98c.9.18 1.86.28 2.8.28h4c.94 0 1.9-.1 2.8-.28A1 1 0 0 1 18 14v3a1 1 0 0 1-1.14.99c-3.9-.47-7.82-.47-11.72 0A1 1 0 0 1 4 17v-3a1 1 0 0 1 1.2-.98z"/></svg>
+        </button>
+        <div class="label">Contestar</div>
+      </div>
+    </div>
+    <p class="hint">Toca la pantalla si no escuchas el timbre</p>
+  </div>
+</section>
+
+<!-- ===== PLAYER ===== -->
+<section id="player" class="player" aria-hidden="true">
+  <video id="scene" playsinline webkit-playsinline preload="auto">
+    <source src="video.mp4" type="video/mp4">
+    Tu navegador no soporta video HTML5.
+  </video>
+</section>
+
+<audio id="ring" loop preload="auto">
+  <source src="ringtone.mp3" type="audio/mpeg">
+</audio>
+
+<script>
+  // ==== Clock
+  function fmt(n){return (n<10?'0':'')+n}
+  function updateClock(){
+    const d=new Date();
+    const h=d.getHours(); const m=d.getMinutes();
+    const time=document.getElementById('time');
+    const date=document.getElementById('date');
+    time.textContent=`${h}:${fmt(m)}`;
+    date.textContent=d.toLocaleDateString(undefined,{weekday:'long', month:'long', day:'numeric'});
+  }
+  updateClock(); setInterval(updateClock, 10_000);
+
+  // ==== Slider (robusto con Pointer Events + transform)
+  const slider = document.getElementById('slider');
+  const thumb = document.getElementById('thumb');
+  let dragging=false; let startX=0; let dx=0;
+  const margin=6;
+  function maxX(){
+    const sw = slider.getBoundingClientRect().width;
+    const tw = thumb.getBoundingClientRect().width;
+    return Math.max(0, sw - tw - margin*2);
+  }
+  function setX(x){ dx = Math.max(0, Math.min(maxX(), x)); thumb.style.transform = `translateX(${dx}px)`; }
+  function onDown(e){ dragging=true; thumb.setPointerCapture?.(e.pointerId); startX = (e.clientX|| (e.touches?e.touches[0].clientX:0)) - dx; e.preventDefault?.(); }
+  function onMove(e){ if(!dragging) return; const cx=(e.clientX||(e.touches?e.touches[0].clientX:0)); setX(cx - startX); e.preventDefault?.(); }
+  function onUp(){ if(!dragging) return; dragging=false; const progress = dx / maxX(); if(progress>=0.7) unlock(); else { thumb.style.transition='transform .25s ease'; setX(0); setTimeout(()=> thumb.style.transition='', 250); } }
+
+  thumb.addEventListener('pointerdown', onDown);
+  window.addEventListener('pointermove', onMove);
+  window.addEventListener('pointerup', onUp);
+  // Fallback taps: double tap anywhere on slider
+  slider.addEventListener('dblclick', unlock);
+
+  const lock = document.getElementById('lock');
+  const incoming = document.getElementById('incoming');
+  const ring = document.getElementById('ring');
+  const answer = document.getElementById('answer');
+  const decline = document.getElementById('decline');
+  const player = document.getElementById('player');
+  const scene = document.getElementById('scene');
+
+  // Start ringtone on first interaction (mobile policy)
+  let audioPrimed=false;
+  function primeAudio(){
+    if(audioPrimed) return;
+    audioPrimed=true;
+    try{ ring.currentTime=0; ring.play().catch(()=>{}); }catch(e){}
+    window.removeEventListener('pointerdown', primeAudio);
+  }
+  window.addEventListener('pointerdown', primeAudio);
+
+  async function unlock(){
+    primeAudio();
+    lock.style.transition='opacity .35s ease'; lock.style.opacity='0';
+    setTimeout(()=>{ lock.style.display='none'; incoming.classList.add('show'); }, 350);
+  }
+
+  function vibrate(pattern=[80,40,80,40,120]){ if(navigator.vibrate) try{navigator.vibrate(pattern)}catch(e){} }
+  decline.addEventListener('click', ()=>{ vibrate(); decline.classList.remove('shake'); void decline.offsetWidth; decline.classList.add('shake'); });
+
+  async function goFullscreen(el){ const fn=el.requestFullscreen||el.webkitRequestFullscreen||el.msRequestFullscreen||el.mozRequestFullScreen; if(fn) try{await fn.call(el)}catch(e){} }
+
+  answer.addEventListener('click', async ()=>{ try{ring.pause(); ring.currentTime=0}catch(e){}; player.classList.add('show'); player.setAttribute('aria-hidden','false'); await goFullscreen(player); try{await scene.play()}catch(e){console.warn('Reproducción bloqueada',e)}; });
+
+  function closePage(){ try{window.close()}catch(e){}; try{window.open('','_self'); window.close()}catch(e){}; try{location.replace('about:blank')}catch(e){}; document.body.innerHTML='' }
+  scene.addEventListener('ended', closePage);
+</script>
+</body>
+</html>
